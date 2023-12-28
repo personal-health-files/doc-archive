@@ -10,18 +10,15 @@
    [org.httpkit.client :as http]
    [morse.handlers :as h]
    [morse.api :as t]
+   [dojo.keys]
    [morse.polling :as p])
   (:import
    [java.security MessageDigest]
    [java.io FileInputStream])
   (:gen-class))
 
-(def api-key
-  (or (System/getenv "OPENAIKEY")
-      ))
-
-(def telegram-token (or (System/getenv "TELEGRAM_BOT_TOKEN")
-                        ))
+(def api-key dojo.keys/api-key)
+(def telegram-token dojo.keys/telegram-token)
 
 
 (defn sha1
