@@ -285,4 +285,54 @@
   (simple-query ztx '{:find [(pull ?e [*])]
                       :where [[?e :xt/id ?id]]})
 
+
+  ;; test pdfbox 2.0.9
+  ;; (text/extract "test-docs/public/22-11-04-Labs.pdf")
+
+  ;; (spit (io/file "extract_test_orin.txt")
+  ;;       (text/extract "test-docs/public/22-11-04-Labs.pdf") )
+
+  ;; test pdfbox 3.0
+  ;; (import 'org.apache.pdfbox.text.PDFTextStripper)
+  ;; (import 'org.apache.pdfbox.pdfparser.PDFParser)
+  ;; ;; (import 'org.apache.pdfbox.io.RandomAccessFile)
+  ;; (import 'org.apache.pdfbox.io.RandomAccessRead)
+  ;; (import 'org.apache.pdfbox.Loader)
+  ;;
+  ;; (spit (io/file "extract_test_3.0.0.txt")
+  ;;       (.getText
+  ;;        (PDFTextStripper.)
+  ;;        (org.apache.pdfbox.Loader/loadPDF
+  ;;         (io/file "test-docs/public/22-11-04-Labs.pdf"))))
+  ;;
+  ;; result is the same
+
+  ;; aspose - https://docs.aspose.com/pdf/java/extract-text-from-pdf/
+  ;; (import 'com.aspose.pdf.Document)
+  ;; (import 'com.aspose.pdf.TextAbsorber)
+
+  ;; (let [d (com.aspose.pdf.Document. "test-docs/public/22-11-04-Labs.pdf")
+  ;;       txt-abs (com.aspose.pdf.TextAbsorber.)]
+  ;;   (.accept (.getPages d) txt-abs)
+  ;;   (.getText txt-abs)
+  ;;   #_(spit (io/file "extract_test_aspose.txt")
+  ;;           (.getText txt-abs)))
+
+  ;; spire pdf
+  (import 'com.spire.pdf.PdfDocument);
+  (import 'com.spire.pdf.PdfPageBase);
+  (import 'com.spire.pdf.texts.PdfTextExtractOptions);
+  (import 'com.spire.pdf.texts.PdfTextExtractor);
+
+  (let [doc (com.spire.pdf.PdfDocument.)
+        _ (.loadFromFile doc "test-docs/public/22-11-04-Labs.pdf")
+        page (.get (.getPages doc) 1)
+        textExtractor (PdfTextExtractor. page)
+        extractOptions (PdfTextExtractOptions.)
+        text (.extract textExtractor extractOptions)]
+    (spit (io/file "extract_test_spire.txt")
+          text)
+    )
+
+
   :ok)
