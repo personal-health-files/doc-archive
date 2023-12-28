@@ -1,0 +1,27 @@
+{:tasks {:init        (do
+                        (def ansi-green "\u001B[32m") (def ansi-reset "\u001B[0m") (def ansi-yellow "\u001B[33m")
+                        (defn current-date
+                          []
+                          (let [date (java.time.LocalDateTime/now)
+                                formatter (java.time.format.DateTimeFormatter/ofPattern "yyyy-MM-dd HH:mm:ss")]
+                            (.format date formatter))))
+
+         :enter       (let [{:keys [name]} (current-task)] (println (clojure.core/format "%s[ ] %s %s%s" ansi-yellow name (current-date) ansi-reset)))
+         :leave       (let [{:keys [name]} (current-task)] (println (clojure.core/format "%s[✔]︎ %s %s%s" ansi-green name (current-date) ansi-reset)))
+
+         hook      {:doc "Setup git hook"
+                    :task (do (shell "cp  .hooks/pre-commit ./.git/hooks/pre-commit")
+                              (shell "chmod +x .git/hooks/pre-commit"))}
+
+         repl      {:doc  "Run Clojure repl for Emacs with cider"
+                    :task (clojure {:extra-env {}} "-M:nrepl:dev:ui")}
+
+         build-ui {:doc  "Rebuild ui"
+                   :task (clojure "-X user/restart-ui")}
+
+         up       {:doc  "Start database container"
+                   :task (shell "docker compose up -d")}
+
+         test (do (println "Run tests!")
+                  (shell {:extra-env {}}
+                         "clojure -M:test:kaocha "))}}

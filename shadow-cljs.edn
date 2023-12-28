@@ -1,0 +1,13 @@
+{:nrepl  false
+ :deps   {:aliases [:nrepl :ui]}
+ :builds {:ui {:asset-path  "/static/js"
+               :parallel-build true
+               :target      :browser
+               :build-hooks [(stylo.shadow/reload "shadow-target/stylo/dev/public/css/stylo.css")]
+               :devtools    {:watch-dir  "shadow-target/stylo/dev/public/css/"
+                             :watch-path "/static/css"}
+               :dev         {:modules    {:ui {:entries [dojo.dev]}}
+                             :output-dir "shadow-target/shadow/dev/public/js"}
+               :release     {:modules    {:ui {:entries [dojo.prod]}}
+                             :output-dir "shadow-target/shadow/release/public/js"
+                             :compiler-options {:optimizations :advanced}}}}}

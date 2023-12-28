@@ -1,0 +1,22 @@
+{ns demo
+ import #{http dojo xtdb}
+
+ xtdb
+ {:engine   xtdb/db
+  :dir "data/prod"}
+
+ xtdb-test
+ {:engine   xtdb/db
+  :dir "data/test"}
+
+ api
+ {:engine http/api
+  :port 5173}
+
+ system
+ {:zen/tags #{zen/system}
+  :start [api goog xtdb]}
+
+ test-system
+ {:zen/tags #{zen/system}
+  :start [goog xtdb-test]}}

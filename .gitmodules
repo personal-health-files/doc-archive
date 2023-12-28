@@ -1,0 +1,24 @@
+[submodule "synthea"]
+	path = synthea
+	url = https://github.com/synthetichealth/synthea.git
+[submodule "libs/zen"]
+	path = libs/zen
+	url = git@github.com:zen-lang/zen.git
+[submodule "libs/zen-web"]
+	path = libs/zen-web
+	url = git@github.com:zen-lang/zen-web.git
+[submodule "libs/sql-on-fhir"]
+	path = libs/sql-on-fhir
+	url = git@github.com:HealthSamurai/sql-on-fhir.clj.git
+[submodule "libs/fhir-validator"]
+	path = libs/fhir-validator
+	url = git@github.com:HealthSamurai/fhir-validator.git
+[submodule "libs/fhir-clj"]
+	path = libs/fhir-clj
+	url = git@github.com:HealthSamurai/fhir-clj.git
+[submodule "libs/dsql"]
+	path = libs/dsql
+	url = git@github.com:HealthSamurai/dsql.git
+[submodule "libs/suitkin"]
+	path = libs/suitkin
+	url = git@github.com:HealthSamurai/suitkin.git

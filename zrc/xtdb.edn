@@ -1,0 +1,16 @@
+{ns xtdb
+
+ db
+ {:zen/tags #{zen/start}
+  :zen/state-key :xtdb}
+
+ query
+ {:zen/tags #{zen/op}}
+
+ put
+ {:zen/tags #{zen/op}}
+
+ evict
+ {:zen/tags #{zen/op}}
+
+ }
