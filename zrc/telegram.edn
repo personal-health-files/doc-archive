@@ -1,0 +1,7 @@
+{ns telegram
+
+ bot
+ {:zen/tags #{zen/start}
+  :zen/state-key :tg/bot}
+
+ }

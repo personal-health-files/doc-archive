@@ -6,4 +6,7 @@
  resource
  {:zen/tags #{zen/op}}
 
+ ask-gpt
+ {:zen/tags #{zen/op}}
+
  }

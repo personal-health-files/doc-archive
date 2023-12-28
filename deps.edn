@@ -29,8 +29,6 @@
                                    :sha "7a697aa274034e373cb38d4e2d3b0cd66f27709f"}
 
 
-        http-kit/http-kit               {:mvn/version "2.8.0-beta3"}
-
         rewrite-clj/rewrite-clj           {:mvn/version "1.1.45"}
         macrocss/macrocss                 {:git/url "https://github.com/HealthSamurai/macrocss"
                                            :sha "01c0fa944d13985f0ead4df73e78ebae3dbc3984"}
@@ -47,7 +45,10 @@
         com.google.api-client/google-api-client         {:mvn/version "2.2.0"}
 
         com.xtdb/xtdb-core             {:mvn/version "1.24.0"}
-        com.xtdb/xtdb-rocksdb          {:mvn/version "1.24.0"}}
+        com.xtdb/xtdb-rocksdb          {:mvn/version "1.24.0"}
+        morse/morse                    {:mvn/version "0.4.3"}
+
+        http-kit/http-kit               {:mvn/version "2.8.0-beta3"}}
 
  :aliases
  {:ui      {:extra-paths ["dev" "src-ui"]

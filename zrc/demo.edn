@@ -1,5 +1,5 @@
 {ns demo
- import #{http dojo xtdb}
+ import #{http dojo xtdb telegram}
 
  xtdb
  {:engine   xtdb/db
@@ -13,10 +13,14 @@
  {:engine http/api
   :port 5173}
 
+ tg-bot
+ {:engine telegram/bot
+  :dir "data/tg-docs"}
+
  system
  {:zen/tags #{zen/system}
-  :start [api goog xtdb]}
+  :start [api goog xtdb tg-bot]}
 
  test-system
  {:zen/tags #{zen/system}
-  :start [goog xtdb-test]}}
+  :start [goog xtdb-test tg-bot]}}
