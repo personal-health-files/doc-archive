@@ -134,6 +134,10 @@
         (sort-by :date)
         (reverse))})
 
+(defmethod zen/op
+  'dojo/resource
+  [ztx _cfg {params :params} & [_session]]
+  {:result (first (simple-query ztx {:find '[(pull ?e [*])] :where [['?e :xt/id (:id params)]]}))})
 
 
 (comment
@@ -141,6 +145,8 @@
   (def ztx (zen/new-context {}))
 
   (zen/read-ns ztx 'demo)
+  (zen/read-ns ztx 'dojo)
+
   (zen/start-system ztx 'demo/system)
 
   (zen/stop-system ztx)
@@ -148,13 +154,18 @@
   (doseq [d (load-test-documents)]
     (println d)
     (save ztx
-     {:id (:sha d)
-      :resourceType "DocumentReference"
-      :period {:start (:date d)}
-      :type {:text (:title d) :coding []}
-      :text {:div (:summary d)}
-      :content [{:attachment {:contentType "pdf" :url (:file d)}}]}))
+          {:id (:sha d)
+           :resourceType "DocumentReference"
+           :period {:start (:date d)}
+           :type {:text (:title d) :coding []}
+           :text {:div (:summary d)}
+           :content [{:attachment {:contentType "pdf" :url (:file d)}}]}))
 
   (zen/op-call ztx 'dojo/timeline {:params {}})
+
+  (zen/op-call ztx 'dojo/resource {:params {:rt "DocumentReference", :id "793fb593b27f63601c4ebe927c3ce92c20ea20ef"}})
+
+  (simple-query ztx '{:find [(pull ?e [*])]
+                      :where [[?e :xt/id "793fb593b27f63601c4ebe927c3ce92c20ea20ef"]]})
 
   :ok)

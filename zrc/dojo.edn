@@ -1,6 +1,9 @@
 {ns dojo
 
  timeline
- {:zen/tags #{pg/repo}}
+ {:zen/tags #{zen/op}}
+
+ resource
+ {:zen/tags #{zen/op}}
 
  }

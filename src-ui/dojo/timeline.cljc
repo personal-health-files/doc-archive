@@ -31,8 +31,7 @@
                                            :cursor-pointer
                                            [:hover [:bg :blue-100]]
                                            :border-b :flex :items-top [:space-x 2])
-             :target "_blank"
-             :href (str "/static/" (:file it))}
+                   :target "_blank"}
          [:div {:class (c :text-xs [:text :gray-600] [:w-min 20])} (:date it)]
          [:div
           [:div {:class (c :flex :items-baseline [:space-x 2])}
@@ -42,10 +41,8 @@
            [:div {:class (c {:white-space "nowrap"})}(:display it)]]
           [:div {:class (c :text-xs [:text :gray-800])}
            (:summary it)]
-          ]
-         ]
-        [:iframe {:src (str "/static/" (:file it)) :class (c {:width "100%" :height "600px"})}]
-        ]
+          [:a {:href (href "fhir" (:type it) (:id it))} "->>"]]]
+        [:iframe {:src (str "/static/" (:file it)) :class (c {:width "100%" :height "600px"})}]]
        )]))
 
 (zf/defv search []
