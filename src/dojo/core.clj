@@ -7,11 +7,15 @@
    [pdfboxing.text :as text]
    [clojure.java.io :as io]
    [cheshire.core :as json]
-   [org.httpkit.client :as http])
+   [org.httpkit.client :as http]
+   [morse.handlers :as h]
+   [morse.api :as t]
+   [morse.polling :as p])
   (:import
    [java.security MessageDigest]
    [java.io FileInputStream])
   (:gen-class))
+
 
 
 (defn sha1
@@ -54,13 +58,14 @@
       ))
 
 (defn completition [req]
-  (let [resp (http/request
-             {:url "https://api.openai.com/v1/chat/completions"
-              :method :post
-              :headers {"Content-Type" "application/json"
-                        "Authorization" (str "Bearer " api-key)}
-              :timeout 50000
-              :body (json/generate-string req)})]
+  (let [resp
+        (http/request
+         {:url "https://api.openai.com/v1/chat/completions"
+          :method :post
+          :headers {"Content-Type" "application/json"
+                    "Authorization" (str "Bearer " api-key)}
+          :timeout 50000
+          :body (json/generate-string req)})]
     (-> @resp
         :body
         (cheshire.core/parse-string keyword))))
@@ -79,17 +84,33 @@
    (cheshire.core/parse-string keyword)))
 
 
+(defn process-pdf [file]
+  (println "check is file PDF")
+  (let [p (.getPath file)]
+    (when (str/ends-with? file ".pdf")
+      (println "process file")
+      (let [t (text/extract p)
+            r (docref-summary t)]
+        (println "processed")
+        (println r)
+        (-> r
+            (assoc :file (.getName file) :sha (sha1 file)))))) )
+
+(defn pdf-result->docref
+  [{:keys [title date summary file sha]}]
+  {:id           sha
+   :resourceType "DocumentReference"
+   :period       {:start date}
+   :type         {:text title :coding []}
+   :text         {:div summary}
+   :content      [{:attachment {:contentType "pdf" :url file}}]})
+
 (defn load-test-documents []
   (->>
-   (for [f (file-seq (io/file "test-docs/public"))]
-     (let [p (.getPath f)]
-       (when (str/ends-with? f ".pdf")
-         (let [t (text/extract p)
-               r (docref-summary t)]
-           (println r)
-           (-> r
-               (assoc :file (.getName f) :sha (sha1 f)))))))
+   (for [f (filter #(.isFile %) (file-seq (io/file "test-docs/public"))) ]
+     (pdf-result->docref (process-pdf f)))
    (filterv identity)))
+
 
 (defn read [ztx {id :id :as data}]
   (if-not id
@@ -135,6 +156,130 @@
         (reverse))})
 
 
+;; --------------------------------- telegram bot ------------------------------------------
+
+
+(def telegram-token (or (System/getenv "TELEGRAM_BOT_TOKEN")
+                        ))
+
+(defn get-file-path [file-id]
+  (let [resp @(http/get (str "https://api.telegram.org/bot"
+                             telegram-token "/getFile")
+                        {:query-params {:file_id file-id}})]
+    (when (= (resp :status) 200)
+      (-> (json/parse-string (:body resp))
+          (get-in ["result" "file_path"])))))
+
+
+(defn get-file-bytes [file-path]
+  (let [resp @(http/get (str "https://api.telegram.org/file/bot"
+                             telegram-token "/" file-path))]
+    (when (= 200 (:status resp))
+      (.readAllBytes (:body resp)))))
+
+(defn check-unique-file [dir file-name]
+  (let [nfile (io/file dir file-name)]
+    (if-not (.exists nfile)
+      nfile
+      (let [dot-pos     (str/last-index-of file-name ".")
+            fname       (subs file-name 0 dot-pos)
+            ext         (subs file-name (inc dot-pos))
+            postfix     (str "__" (subs (str (java.util.UUID/randomUUID)) 0 4))
+            clean-fname (str/replace-first fname #"__.{4}$" "")
+            new-fname   (str clean-fname postfix "." ext)]
+        (check-unique-file dir new-fname)))))
+
+
+;; (check-unique-file "docs" "hello.doc.txt")
+;; (check-unique-file "docs" "1.txt")
+
+(defn save-file [dir file-name bytes]
+  (let [tgt-file (check-unique-file dir file-name)
+        opts (into-array java.nio.file.OpenOption [])]
+    (io/make-parents tgt-file)
+    (java.nio.file.Files/write (.toPath tgt-file) bytes opts)
+    tgt-file))
+
+
+(defn download-file
+  [target-dir {{:keys [file_id file_name]} :document :as msg}]
+  (println "Download file")
+  (let [file-path (get-file-path file_id)
+        resp2 (get-file-bytes file-path)]
+    (println "Save file")
+    (save-file target-dir file_name resp2)))
+
+
+
+(defmethod zen/start 'telegram/bot
+  [ztx config]
+  (let [dir (or (:dir config) "data/docs")]
+    ;; FIXME replace macro with proper funstions
+                                        ; This will define bot-api function, which later could be
+                                        ; used to start your bot
+    (h/defhandler bot-api
+                                        ; Each bot has to handle /start and /help commands.
+                                        ; This could be done in form of a function:
+      (h/command-fn "start" (fn [{{id :id :as chat} :chat}]
+                              (println "Bot joined new chat: " chat)
+                              (t/send-text telegram-token id "Welcome!")))
+
+                                        ; You can use short syntax for same purposes
+                                        ; Destructuring works same way as in function above
+      (h/command "help" {{id :id :as chat} :chat}
+                 (println "Help was requested in " chat)
+                 (t/send-text telegram-token id "Help is on the way"))
+
+                                        ; Handlers will be applied until there are any of those
+                                        ; returns non-nil result processing update.
+
+                                        ; Note that sending stuff to the user returns non-nil
+                                        ; response from Telegram API.
+
+                                        ; So match-all catch-through case would look something like this:
+      (h/message message
+
+                 ;; === Example of message with file ====
+                 ;;
+                 ;; {:message_id 108,
+                 ;;  :from       {:id            487909300,
+                 ;;               :is_bot        false,
+                 ;;               :first_name    "",
+                 ;;               :username      "NeoSero",
+                 ;;               :language_code "ru",
+                 ;;               :is_premium    true},
+                 ;;  :chat       {:id "487909300",
+                 ;;               :first_name "",
+                 ;;               :username   "NeoSero",
+                 ;;               :type       "private"},
+                 ;;  :date       1703764115,
+                 ;;  :document   {:file_name      "1.txt",
+                 ;;               :mime_type      "text/plain",
+                 ;;               :file_id        "BQACAgIAAxkBAANsZY1gk1dcyhJNzjtjdcvEmp1EHoYAAmA_AAIeNGhINCLcp_o4Gd4zBA",
+                 ;;               :file_unique_id "AgADYD8AAh40aEg",
+                 ;;               :file_size      13}}
+                 (def message message)
+                 (def dir dir)
+                 (cond (:document message)
+                       (let [file (download-file dir message)
+                             pdf-res (process-pdf file)]
+                         (when pdf-res
+                           (save ztx (pdf-result->docref pdf-res))
+                           (t/send-text telegram-token (-> message :chat :id)
+                                        (str "File " (:file pdf-res ) " processed"))
+                           ))
+                       :else
+                       (println "Intercepted message:" message))
+
+                 ))
+
+    (p/start telegram-token bot-api) ;; TODO: MOVE telegram-token to ZEN
+    ))
+
+
+(defmethod zen/stop 'telegram/bot
+  [_ztx _config  state]
+  (p/stop state))
 
 (comment
 
@@ -148,13 +293,14 @@
   (doseq [d (load-test-documents)]
     (println d)
     (save ztx
-     {:id (:sha d)
-      :resourceType "DocumentReference"
-      :period {:start (:date d)}
-      :type {:text (:title d) :coding []}
-      :text {:div (:summary d)}
-      :content [{:attachment {:contentType "pdf" :url (:file d)}}]}))
+          {:id           (:sha d)
+           :resourceType "DocumentReference"
+           :period       {:start (:date d)}
+           :type         {:text (:title d) :coding []}
+           :text         {:div (:summary d)}
+           :content      [{:attachment {:contentType "pdf" :url (:file d)}}]}))
 
   (zen/op-call ztx 'dojo/timeline {:params {}})
+
 
   :ok)
