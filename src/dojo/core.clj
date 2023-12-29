@@ -14,7 +14,11 @@
    [morse.polling :as p])
   (:import
    [java.security MessageDigest]
-   [java.io FileInputStream])
+   [java.io FileInputStream]
+   com.spire.pdf.PdfDocument
+   com.spire.pdf.PdfPageBase
+   com.spire.pdf.texts.PdfTextExtractOptions
+   com.spire.pdf.texts.PdfTextExtractor)
   (:gen-class))
 
 (def api-key dojo.keys/api-key)
@@ -70,29 +74,55 @@
         :body
         (cheshire.core/parse-string keyword))))
 
+(def summary-model "gpt-4-1106-preview")
+(def summary-model "gpt-3.5-turbo-1106")
+
 (defn docref-summary [doc-text]
   (->
-   (completition {:model "gpt-3.5-turbo-1106"
+   (completition {:model summary-model 
                   :response_format { :type "json_object" }
                   :messages [{:role "system"
                               :content "You are expert, who helps to extract structured information from clinical documents"}
                              {:role "user"
                               :content (str "Here is a content of clinical document: " doc-text)}
                              {:role "user"
-                              :content "Extract json object with date of document as 'date' attribute in ISO format, type of document in English in about 2-5 words as 'title' attribute, and short text summary in English without patient name as 'summary' attribute"}]})
+                              :content "Extract json object with date of document as 'date' attribute in ISO format, type of document in English in about 2-3 words as 'title' attribute, and short summary of document in English as 'summary' attribute"}]})
    (get-in [:choices 0 :message :content])
    (cheshire.core/parse-string keyword)))
 
+(comment
+  (docref-summary "Ibuprofen 100mg prn")
+
+  )
+
+(defn pdf-text-old [p]
+  (text/extract p))
+
+
+(defn pdf-text [p]
+  (try 
+    (let [doc (com.spire.pdf.PdfDocument.)
+          _ (.loadFromFile doc p)
+          extractOptions (PdfTextExtractOptions.)]
+      (->> (iterator-seq  (.iterator (.getPages doc)))
+           (map-indexed (fn [i page]
+                          (println :page i)
+                          (let [textExtractor (PdfTextExtractor. page)
+                                text (.extract textExtractor extractOptions)]
+                            (str/replace text #"Evaluation Warning : The document was created with Spire.PDF for java.\n" ""))))
+           (str/join "\n")))
+    (catch Exception e
+      (println :pdf.spire/error)
+      (pdf-text-old p))))
 
 (defn process-pdf [file]
   (println "check is file PDF")
   (let [p (.getPath file)]
     (when (str/ends-with? (str/lower-case file) ".pdf")
       (println "process file")
-      (let [t (text/extract p)
+      (let [t (pdf-text-old p)
             r (docref-summary t)]
         (println "processed")
-        (println r)
         {:resourceType "DocumentReference"
          :id           (sha1 file)
          :period       {:start (:date r)}
@@ -112,9 +142,23 @@
   [x]
   (or (get-in x [:type :text]) (get-in x [:type :coding 0 :display])))
 
+(defmulti get-obs-title (fn [x] (get-in x [:code :coding 0 :code])))
+
+(defmethod get-obs-title
+  "85354-9"
+  [obs]
+  (str ": "
+       (get-in obs [:component 0 :valueQuantity :value])
+       "/"
+       (get-in obs [:component 1 :valueQuantity :value])
+       " "
+       (get-in obs [:component 1 :valueQuantity :unit])))
+
 (defmethod get-title "Observation"
   [x]
-  (or (get-in x [:code :text]) (get-in x [:code :coding 0 :display])))
+  (str 
+   (or (get-in x [:code :text]) (get-in x [:code :coding 0 :display]))
+   (get-obs-title x)))
 
 (defmethod zen/op
   'dojo/timeline
@@ -138,6 +182,10 @@
   [ztx _cfg {params :params} & [_session]]
   {:result (first (simple-query ztx {:find '[(pull ?e [*])] :where [['?e :xt/id (:id params)]]}))})
 
+
+(def dialog-model "gpt-4")
+(def dialog-model "gpt-3.5-turbo")
+
 (defmethod zen/op
   'dojo/ask-gpt
   [ztx _cfg {params :params} & [_session]]
@@ -145,7 +193,7 @@
   (let [res (first (simple-query ztx {:find '[(pull ?e [*])] :where [['?e :xt/id (:id params)]]}))
         doc-text (get-in res [:text :div])]
     {:result (-> (completition
-                  {:model "gpt-3.5-turbo"
+                  {:model dialog-model
                    :messages [{:role "system"
                                :content "You are expert, who helps to extract information from clinical documents"}
                               {:role "user"
@@ -199,50 +247,46 @@
 
 (defn download-file
   [target-dir {{:keys [file_id file_name]} :document :as msg}]
-  (println "Download file")
+  (println "Download file" target-dir file_name)
   (let [file-path (get-file-path file_id)
         resp2 (get-file-bytes file-path)]
     (println "Save file")
     (save-file target-dir file_name resp2)))
 
 (defn process-message [ztx dir message]
+  (println :chat-id (-> message :chat :id))
   (cond (:document message)
         (let [_ (t/send-text telegram-token (-> message :chat :id) (str "Start processing..."))
               file (download-file dir message)
               pdf-res (process-pdf file)]
-          (println :res pdf-res)
           (when pdf-res
             (save ztx pdf-res)
-            (t/send-text telegram-token (-> message :chat :id) (str "File processed - " (get-in pdf-res [:type :text])))))
+            (t/send-text telegram-token (-> message :chat :id)
+                         {:parse_mode "HTML"}
+                         (str "File processed - <b>" (get-in pdf-res [:type :text]) "</b> - " (get-in pdf-res [:text :summary])
+                              "\n" (str "<a href=\"http://0.0.0.0:5173/#/fhir/DocumentReference/" (:id pdf-res) "\">Document</a>")))))
         :else
         (println "Intercepted message:" message)))
 
+(comment
+  (t/send-text telegram-token 165929935 {:parse_mode "HTML"}
+
+               (str "File processed - <b>" "title" "</b> - " "ups"
+                    "\n" (str "<a href=\"http://0.0.0.0:5173/#/fhir/DocumentReference/5\">Document</a>")
+                    ))
+
+  )
+
 (defmethod zen/start 'telegram/bot
   [ztx config]
-  (let [dir (or (:dir config) "data/docs")]
-    ;; FIXME replace macro with proper funstions
-                                        ; This will define bot-api function, which later could be
-                                        ; used to start your bot
+  (let [dir "test-docs/public"]
     (h/defhandler bot-api
-                                        ; Each bot has to handle /start and /help commands.
-                                        ; This could be done in form of a function:
       (h/command-fn "start" (fn [{{id :id :as chat} :chat}]
                               (println "Bot joined new chat: " chat)
                               (t/send-text telegram-token id "Welcome!")))
-
-                                        ; You can use short syntax for same purposes
-                                        ; Destructuring works same way as in function above
       (h/command "help" {{id :id :as chat} :chat}
                  (println "Help was requested in " chat)
                  (t/send-text telegram-token id "Help is on the way"))
-
-                                        ; Handlers will be applied until there are any of those
-                                        ; returns non-nil result processing update.
-
-                                        ; Note that sending stuff to the user returns non-nil
-                                        ; response from Telegram API.
-
-                                        ; So match-all catch-through case would look something like this:
       (h/message message (#'process-message ztx dir message)))
 
     (p/start telegram-token bot-api) ;; TODO: MOVE telegram-token to ZEN
@@ -254,6 +298,7 @@
   (p/stop state))
 
 (comment
+
 
   (def ztx (zen/new-context {}))
 
@@ -268,12 +313,14 @@
 
   (def r (process-pdf (second (test-docs-list))))
 
-  r
   (save ztx r)
 
   (doseq [d (test-docs-list)]
+    (println d)
     (let [r (process-pdf d)]
-      (println (get-in (save ztx r) [:type]))))
+      (save ztx r)))
+
+  (save ztx {:resourceType "Observation" :id "..."})
 
   (zen/op-call ztx 'dojo/timeline {:params {}})
 
@@ -282,54 +329,48 @@
   (simple-query ztx '{:find [(pull ?e [*])]
                       :where [[?e :xt/id ?id]]})
 
-
-  ;; test pdfbox 2.0.9
-  ;; (text/extract "test-docs/public/22-11-04-Labs.pdf")
-
-  ;; (spit (io/file "extract_test_orin.txt")
-  ;;       (text/extract "test-docs/public/22-11-04-Labs.pdf") )
-
-  ;; test pdfbox 3.0
-  ;; (import 'org.apache.pdfbox.text.PDFTextStripper)
-  ;; (import 'org.apache.pdfbox.pdfparser.PDFParser)
-  ;; ;; (import 'org.apache.pdfbox.io.RandomAccessFile)
-  ;; (import 'org.apache.pdfbox.io.RandomAccessRead)
-  ;; (import 'org.apache.pdfbox.Loader)
-  ;;
-  ;; (spit (io/file "extract_test_3.0.0.txt")
-  ;;       (.getText
-  ;;        (PDFTextStripper.)
-  ;;        (org.apache.pdfbox.Loader/loadPDF
-  ;;         (io/file "test-docs/public/22-11-04-Labs.pdf"))))
-  ;;
-  ;; result is the same
-
-  ;; aspose - https://docs.aspose.com/pdf/java/extract-text-from-pdf/
-  ;; (import 'com.aspose.pdf.Document)
-  ;; (import 'com.aspose.pdf.TextAbsorber)
-
-  ;; (let [d (com.aspose.pdf.Document. "test-docs/public/22-11-04-Labs.pdf")
-  ;;       txt-abs (com.aspose.pdf.TextAbsorber.)]
-  ;;   (.accept (.getPages d) txt-abs)
-  ;;   (.getText txt-abs)
-  ;;   #_(spit (io/file "extract_test_aspose.txt")
-  ;;           (.getText txt-abs)))
-
   ;; spire pdf
-  (import 'com.spire.pdf.PdfDocument);
-  (import 'com.spire.pdf.PdfPageBase);
-  (import 'com.spire.pdf.texts.PdfTextExtractOptions);
-  (import 'com.spire.pdf.texts.PdfTextExtractor);
 
-  (let [doc (com.spire.pdf.PdfDocument.)
-        _ (.loadFromFile doc "test-docs/public/22-11-04-Labs.pdf")
-        page (.get (.getPages doc) 1)
-        textExtractor (PdfTextExtractor. page)
-        extractOptions (PdfTextExtractOptions.)
-        text (.extract textExtractor extractOptions)]
-    (spit (io/file "extract_test_spire.txt")
-          text)
-    )
+  (-> (pdf-text "test-docs/public/22-11-04-Labs.pdf")
+      (str/split #"\n"))
 
+  (pdf-text "test-docs/public/22-03-15-URINE-ALL.pdf")
+  (-> 
+   (pdf-text "test-docs/public/23-08-09-endoscopy.pdf")
+   (str/split #"\n"))
 
+  (->
+   (pdf-text-old "test-docs/public/23-08-09-endoscopy.pdf")
+   (str/split #"\n"))
+
+  (db.core/evict ztx "5a5852ab55c16025ad654af1bc933ec26b796dec")
+
+  (def bp {:resourceType "Observation",
+         :id (str (random-uuid))
+         :effectiveDateTime "2023-12-27",
+         :category [{:coding [{:system "http://terminology.hl7.org/CodeSystem/observation-category", :code "vital-signs", :display "Vital Signs"}]}],
+         :component
+         [{:code {:coding [{:system "http://loinc.org", :code "8480-6", :display "Systolic blood pressure"}]},
+           :valueQuantity {:value 107,
+                           :unit "mmHg",
+                           :system "http://unitsofmeasure.org",
+                           :code "mm[Hg]"},}
+          {:code
+           {:coding [{:system "http://loinc.org", :code "8462-4", :display "Diastolic blood pressure"}]},
+           :valueQuantity {:value 60,
+                           :unit "mmHg",
+                           :system "http://unitsofmeasure.org",
+                           :code "mm[Hg]"},
+           }],
+         :status "final",
+         :code {:coding [{:system "http://loinc.org", :code "85354-9", :display "Blood pressure panel with all children optional"}],
+                :text "Blood pressure systolic & diastolic"},
+         :bodySite {:coding [{:system "http://snomed.info/sct", :code "368209003", :display "Right arm"}]},
+         :subject {:reference "Patient/example"},})
+
+  (save ztx bp)
+
+  (get-title bp)
+
+ 
   :ok)

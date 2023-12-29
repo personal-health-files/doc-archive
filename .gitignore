@@ -17,3 +17,4 @@ pgdata
 .lsp
 .clj-kondo
 src/dojo/keys.clj
+jars

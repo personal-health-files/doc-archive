@@ -48,6 +48,12 @@
     (xt/sync db)
     {:result res}))
 
+(defn evict
+  [ztx id]
+  (let [db (zen/get-state ztx :xtdb)]
+    (xt/submit-tx db [[::xt/evict id]])
+    (xt/sync db)
+    {:result id}))
 
 (defmethod zen/op
   'xtdb/evict

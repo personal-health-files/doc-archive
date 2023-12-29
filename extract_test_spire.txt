@@ -1,0 +1,37 @@
+Evaluation Warning : The document was created with Spire.PDF for java.
+                                                                                          NIKOLAI RYZHIKOV                                                     Pág. 2 / 5
+                                                                                          Idade       42 Anos                        Data de colheita  03-11-2022
+                                                                                          Nº Inscrição V306071 / 15727003            Data de emissão  04-11-2022
+
+          HEMATOLOGIA                                        Resultado  Unidades         Valores de Referência
+
+        HEMOGRAMA
+          Eritrograma
+           Hemoglobina                                          15.7  g/dl                        13.0 - 17.0
+           Eritrócitos                                            5.28  x 106/µl                  4.50 - 5.50
+           Hematócrito                                          44.8  %                           40.0 - 50.0
+           V.G.M.                                               84.8  fl                          80.0 - 97.0
+           H.G.M.                                               29.7  pg                          27.0 - 32.0
+           C.M.H.G.                                             35.0  g/dl                        32.0 - 36.0
+           R.D.W.                                               13.2  %                           11.6 - 14.0
+          Leucograma
+           Leucócitos                                             9.0  x 103/µl                    4.0 - 10.0
+           Neutrófilos                                           60.4 %  5.44x 103/            40.00 - 80.00
+           Eosinófilos                                            0.9 %  0.08x 103/               1.00 - 6.00
+           Basófilos                                              0.6 %  0.05x 103/               0.00 - 2.00
+           Linfócitos                                            32.0 %  2.88x 103/            20.00 - 40.00
+           Monócitos                                              6.1 %  0.55x 103/              2.00 - 10.00
+          Trombocitograma
+           Plaquetas                                           259        x 103/µl                 150 - 400
+
+        ESTUDO FÍSICO DO SANGUE
+          Velocidade de Sedimentação
+          (Microfotometria capilar )
+           VS à 1ª hora                                           5       mm/hora                        < 13
+
+
+
+  Pôlo Tecnológico de Lisboa - Rua Cupertino de Miranda, 9 - lote 8 - 1600-513 Lisboa - Tel. 212 693 530 - Fax 217 161 676 - contact@germanodesousa.com
+  CENTRO DE MEDICINA LABORATORIAL GERMANO DE SOUSA, SA - DIRECTOR: GERMANO DE SOUSA - MÉDICO PATOLOGISTA CLÍNICO - LICENÇA DE FUNCIONAMENTO Nº0117L/2009
+  LABORATÓRIO CERTIFICADO COM SISTEMA DE GESTÃO DA QUALIDADE ISO 9001                                                                          Dr. Alain Maniable
+

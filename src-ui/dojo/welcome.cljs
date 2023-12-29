@@ -27,15 +27,15 @@
           :path   [::gpt-response]}]})
 
 (zf/defv gpt-resp-view [gpt-resp]
-  [:div {:class (c [:bg :white] [:p 4])}
+  [:div {:class (c [:bg :white] [:p 4] :border [:my 2])}
    (if (:loading gpt-resp)
      [:i.fas.fa-spinner.fa-spin]
-     [:div (:data gpt-resp)])])
+     [:code (:data gpt-resp)])])
 
 (zf/defv index [resource-sub]
-  [:div {:class (c [:p 10])}
-   [:a {:href "#/"} "< Back"]
-   [:h1 {:class styles/h1} (get-in resource-sub [:type :text])]
+  [:div {:class (c [:px 4] [:py 2])}
+   [:a {:href "#/" :class (c [:text :blue-600])} "<< Back"]
+   [:h1 {:class styles/h1} [:span (get-in resource-sub [:type :text])]]
    [:div {:class (c :flex [:space-x 2])}
     [:div {:class (c :flex-1)}
      [:iframe {:class (c [:h 300] {:width "100%"})
@@ -44,13 +44,14 @@
       [:summary "Json"]
       [:pre (get-in resource-sub [:text :div])]]]
     [:div {:class (c :flex-1)}
-     [:div "Chat"]
      [:textarea {:on-key-down (fn [x]
                                 (when (and (= "Enter" (aget x "code")) (aget x "ctrlKey"))
                                   (zf/dispatch [::ask-gpt (.-value (.-target x))])))
+                 :placeholder "Ask GPT press <Ctrl>-<Enter>"
                  :class (c :border
                            [:p 4]
                            {:box-sizing "border-box"
+                            :border-radius "5px"
                             :display "block"
                             :width "100%"
                             :height "100px"})}]
